@@ -2,63 +2,53 @@ import streamlit as st
 import eng_to_ipa as ipa
 from gtts import gTTS
 from io import BytesIO
+import re
 
-# 페이지 설정
-st.set_page_config(page_title="Speaking IPA Converter", page_icon="🗣️")
+st.set_page_config(page_title="Line-by-Line IPA Converter", page_icon="🗣️")
+st.title("🗣️ English & Korean Pronouncer")
 
-st.title("🗣️ Speaking IPA Converter")
-st.write("Paste text below. I will show IPA symbols line-by-line and read it for you!")
+# --- 사이드바: 발음 가이드 (기능 유지) ---
+with st.sidebar:
+    st.header("📖 IPA Sound Guide")
+    st.write("Click the buttons to hear the sound!")
+    ipa_samples = {
+        "æ": ("apple", "애"), "ɛ": ("bed", "에"), "ɪ": ("sit", "이"),
+        "ɔ": ("hot", "아/오"), "ʊ": ("foot", "우"), "ʃ": ("ship", "쉬"),
+        "θ": ("thin", "번데기"), "ð": ("this", "돼지꼬리")
+    }
+    for symbol, (example, desc) in ipa_samples.items():
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            if st.button(symbol, key=symbol):
+                tts_symbol = gTTS(text=example, lang='en')
+                sound_fp = BytesIO()
+                tts_symbol.write_to_fp(sound_fp)
+                st.audio(sound_fp, format='audio/mp3')
+        with col2:
+            st.write(f"like **{example}** ({desc})")
 
-# 입력창
-input_text = st.text_area("Enter English Text:", height=150, placeholder="Hello.\nI want to make a program.")
+# --- 메인 화면: 줄바꿈 최적화 ---
+input_text = st.text_area("Enter Text (English or Korean):", height=150)
 
 if st.button("Convert & Speak 🚀"):
     if input_text:
-        # 1. 텍스트를 줄 단위로 나누기
         lines = input_text.split('\n')
-        
-        st.subheader("📝 Result:")
-        
-        # 2. 한 줄씩 처리해서 보여주기 (원문 한 줄, 발음 한 줄)
         for line in lines:
-            if line.strip(): # 빈 줄이 아닐 때만 실행
-                ipa_line = ipa.convert(line)
-                
-                # HTML을 사용해 예쁘게 꾸미기 (진하게 / 회색)
-                st.markdown(
-                    f"""
-                    <div style="margin-bottom: 10px; padding: 10px; background-color: #f0f2f6; border-radius: 5px;">
-                        <p style="font-size:18px; font-weight:bold; margin:0; color: #000;">{line}</p>
-                        <p style="font-size:16px; margin:0; color: #555; font-family: monospace;">{ipa_line}</p>
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
+            line = line.strip()
+            if line:
+                if re.search("[가-힣]", line):
+                    # 한국어 출력
+                    st.markdown(f"🇰🇷 **{line}**")
+                else:
+                    # 영어: 원문 바로 밑에 발음기호 출력
+                    ipa_line = ipa.convert(line)
+                    st.markdown(f"🇺🇸 **{line}**") # 원문
+                    st.code(ipa_line, language=None) # 바로 밑에 발음기호 (회색 박스로 강조)
+                st.write("") # 문장 사이 간격 살짝 띄우기
 
-        # 3. 음성 만들기 (전체 텍스트 읽기)
-        st.subheader("🔊 Audio:")
-        with st.spinner("Generating audio..."):
-            # 구글 TTS로 음성 파일 생성 (메모리에 저장)
-            sound_file = BytesIO()
-            tts = gTTS(text=input_text, lang='en')
-            tts.write_to_fp(sound_file)
-            
-            # 플레이어 표시
-            st.audio(sound_file)
-            
-    else:
-        st.warning("Please enter some text first.")
-# 기존 코드 맨 아래에 이 내용을 추가하세요
-
-with st.sidebar:
-    st.header("📖 IPA Pronunciation Guide")
-    st.write("Common symbols and sounds:")
-    
-    # 표 형태로 깔끔하게 보여주기
-    guide_data = {
-        "Symbol": ["æ", "ɛ", "ɪ", "ɔ", "ʊ", "ʃ", "θ", "ð"],
-        "Sound like...": ["c**a**t", "b**e**d", "s**i**t", "h**o**t", "f**oo**t", "**sh**ip", "**th**in", "**th**is"]
-    }
-    st.table(guide_data)
-    
-    st.info("Tip: IPA symbols represent specific sounds regardless of spelling!")
+        # 전체 음성 재생
+        sound_file = BytesIO()
+        detected_lang = 'ko' if re.search("[가-힣]", input_text) else 'en'
+        tts = gTTS(text=input_text, lang=detected_lang)
+        tts.write_to_fp(sound_file)
+        st.audio(sound_file)
