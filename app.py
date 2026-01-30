@@ -48,3 +48,17 @@ if st.button("Convert & Speak 🚀"):
             
     else:
         st.warning("Please enter some text first.")
+# 기존 코드 맨 아래에 이 내용을 추가하세요
+
+with st.sidebar:
+    st.header("📖 IPA Pronunciation Guide")
+    st.write("Common symbols and sounds:")
+    
+    # 표 형태로 깔끔하게 보여주기
+    guide_data = {
+        "Symbol": ["æ", "ɛ", "ɪ", "ɔ", "ʊ", "ʃ", "θ", "ð"],
+        "Sound like...": ["c**a**t", "b**e**d", "s**i**t", "h**o**t", "f**oo**t", "**sh**ip", "**th**in", "**th**is"]
+    }
+    st.table(guide_data)
+    
+    st.info("Tip: IPA symbols represent specific sounds regardless of spelling!")
