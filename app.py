@@ -3,37 +3,55 @@ import eng_to_ipa as ipa
 from gtts import gTTS
 from io import BytesIO
 import base64
-import time
 
-# 1. 페이지 설정
+# 1. 페이지 설정 및 와이드 모드
 st.set_page_config(page_title="English IPA Master", page_icon="🇺🇸", layout="wide")
 
-# 화면 어디에서도 보이지 않는 곳에 소리를 재생시키는 함수
-def play_sound_hidden(text, key):
+# 버튼 스타일 및 레이아웃 고정용 CSS
+st.markdown("""
+    <style>
+    .ipa-btn {
+        background-color: #f0f2f6;
+        border: 1px solid #d1d5db;
+        border-radius: 5px;
+        padding: 4px 8px;
+        cursor: pointer;
+        display: inline-block;
+        margin-right: 8px;
+        text-align: center;
+        min-width: 45px;
+        font-weight: bold;
+        user-select: none;
+    }
+    .ipa-btn:active {
+        background-color: #e0e2e6;
+    }
+    .ipa-row {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        margin-bottom: 8px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+def get_audio_base64(text):
     tts = gTTS(text=text, lang='en')
     data = BytesIO()
     tts.write_to_fp(data)
-    b64 = base64.b64encode(data.getvalue()).decode()
-    # 이 HTML 코드가 버튼들 사이에 끼어들지 않도록 독립된 위치에 띄웁니다.
-    audio_html = f"""
-        <audio autoplay="true" id="aud_{key}_{int(time.time())}" style="display:none;">
-            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-        </audio>
-    """
-    # st.empty()를 활용하거나 하단에 배치하여 틈새 발생 방지
-    st.components.v1.html(audio_html, height=0, width=0)
+    return base64.b64encode(data.getvalue()).decode()
 
 st.title("🇺🇸 English Pronunciation Helper")
 
-# --- 데이터 유지 설정 ---
-if "input_txt" not in st.session_state: st.session_state.input_txt = ""
-if "ipa_out" not in st.session_state: st.session_state.ipa_out = ""
+# --- 글자 기억 장치 ---
+if "input_text" not in st.session_state: st.session_state.input_text = ""
+if "ipa_result" not in st.session_state: st.session_state.ipa_result = ""
 
-# --- 사이드바: 틈새 제로 가이드 ---
+# --- 사이드바: 틈새 없는 클릭 가이드 ---
 with st.sidebar:
     st.header("📖 IPA Sound Guide")
-    st.caption("Click to hear sounds (No shifts!)")
-    
+    st.write("Click a symbol to hear its sound.")
+
     ipa_samples = {
         "Vowels": {"æ": "apple", "ɛ": "bed", "ɪ": "sit", "ɔ": "hot", "ʊ": "foot", "ʌ": "cup", "ə": "ago"},
         "Long/Diphthongs": {"i:": "see", "u:": "blue", "eɪ": "say", "aɪ": "eye", "oʊ": "go"},
@@ -42,32 +60,36 @@ with st.sidebar:
 
     for category, symbols in ipa_samples.items():
         st.markdown(f"#### {category}")
-        # 버튼들 사이의 간격을 고정하기 위해 HTML 스타일 사용
         for symbol, example in symbols.items():
-            cols = st.columns([1, 3])
-            with cols[0]:
-                if st.button(symbol, key=f"btn_{symbol}"):
-                    play_sound_hidden(example, symbol)
-            with cols[1]:
-                # 텍스트 높이를 버튼과 맞춰서 틈새가 안 느껴지게 함
-                st.markdown(f"<div style='line-height:2.5;'>as in <b>{example}</b></div>", unsafe_allow_html=True)
+            audio_b64 = get_audio_base64(example)
+            
+            # onclick 이벤트로 클릭할 때만 재생되도록 설정 (새로고침/틈새 없음)
+            button_html = f"""
+                <div class="ipa-row">
+                    <div class="ipa-btn" onclick="new Audio('data:audio/mp3;base64,{audio_b64}').play()">
+                        {symbol}
+                    </div>
+                    <span style='font-size: 14px;'>as in <b>{example}</b></span>
+                </div>
+            """
+            st.components.v1.html(button_html, height=35)
 
 # --- 메인 화면 ---
-user_input = st.text_area("Enter English Text:", value=st.session_state.input_txt, height=150)
-st.session_state.input_txt = user_input
+user_input = st.text_area("Enter English Text:", value=st.session_state.input_text, height=150)
+st.session_state.input_text = user_input
 
 if st.button("Convert & Speak 🚀"):
     if user_input:
-        st.session_state.ipa_out = ipa.convert(user_input)
+        st.session_state.ipa_result = ipa.convert(user_input)
 
-if st.session_state.ipa_out:
+if st.session_state.ipa_result:
     st.subheader("Original Text")
-    st.write(st.session_state.input_txt)
+    st.write(st.session_state.input_text)
     st.divider()
     st.subheader("IPA Transcription")
-    st.info(st.session_state.ipa_out)
+    st.info(st.session_state.ipa_result)
     
-    # 메인 음성 플레이어 (이건 위치 고정이라 괜찮습니다)
+    # 전체 음성 플레이어
     snd = BytesIO()
-    gTTS(text=st.session_state.input_txt, lang='en').write_to_fp(snd)
+    gTTS(text=st.session_state.input_text, lang='en').write_to_fp(snd)
     st.audio(snd)
