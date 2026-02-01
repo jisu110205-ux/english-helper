@@ -61,41 +61,32 @@ input_text = st.text_area("Enter English Text:", value=st.session_state.text_inp
 st.session_state.text_input = input_text
 
 if st.button("Convert & Speak 🚀"):
-# 64번 줄
-    if input_text:
-        # --- 여기서부터 B 코드 (오른쪽으로 더 들어가야 함) ---
-        if 'history' not in st.session_state:
-            st.session_state.history = []
-                
-        if input_text not in st.session_state.history:
-            st.session_state.history.insert(0, input_text)
-        # --- 여기까지 B 코드 ---
+        if input_text:
+            # --- 히스토리 저장 ---
+            if 'history' not in st.session_state:
+                st.session_state.history = []
+            if input_text not in st.session_state.history:
+                st.session_state.history.insert(0, input_text)
 
-        st.subheader("Original Text") # 기존 코드 (줄 맞춰주세요)
-        st.write(input_text)
-        
-        st.divider()
-        
-        st.subheader("IPA Transcription")
-        ipa_result = ipa.convert(input_text)
-        # 1. 발음 기호를 예쁘게 꾸미는 로직
-        formatted_ipa = ipa_result.replace(".", " · ") # 점을 보기 좋게 변경
-        # 강세(')가 붙은 글자만 빨간색 굵은 글씨로 변경
-        formatted_ipa = re.sub(r"'([^ ·\s/]+)", r'<span style="color: #ff4757; font-weight: bold;">\1</span>', formatted_ipa)
+            st.subheader("Original Text")
+            st.write(input_text)
+            st.divider()
 
-        # 2. 화면에 출력 (HTML 기능을 사용해서 색깔을 보여줌)
-        st.markdown(f"### {formatted_ipa}", unsafe_allow_html=True)
-        
-        # 메인 음성 재생
-        tts_all = gTTS(text=input_text, lang='en')
-        sound_file = BytesIO()
-        tts_all.write_to_fp(sound_file)
-        st.audio(sound_file)
-# -----------------------------------------
-# 맨 밑에 추가 (사이드바에 최근 기록 보여주기)
-# -----------------------------------------
+            st.subheader("IPA Transcription")
+            ipa_result = ipa.convert(input_text).replace("*", "") # 별표 제거
+
+            # --- 강세 하이라이트 마법 ---
+            formatted_ipa = ipa_result.replace(".", " · ") 
+            formatted_ipa = re.sub(r"'([^ ·\s/]+)", r'<span style="color: #ff4757; font-weight: bold;">\1</span>', formatted_ipa)
+            st.markdown(f"### {formatted_ipa}", unsafe_allow_html=True)
+
+            # --- 오디오 재생 (선택한 속도로!) ---
+            # 주의: speed_choice 변수는 버튼들 위에 st.radio로 미리 만들어둬야 해요!
+            autoplay_audio(input_text, speed=speed_choice)
+
+# --- 맨 마지막 줄 (사이드바 기록 보여주기) ---
 st.sidebar.markdown("---")
 st.sidebar.title("🕒 최근 검색 기록")
 if 'history' in st.session_state:
-    for word in st.session_state.history[:5]: # 최근 5개만
+    for word in st.session_state.history[:5]:
         st.sidebar.write(f"- {word}")
