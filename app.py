@@ -2,55 +2,68 @@ import streamlit as st
 import eng_to_ipa as ipa
 from gtts import gTTS
 from io import BytesIO
+import base64
 
-# Page Settings
-st.set_page_config(page_title="English IPA Master", page_icon="🇺🇸")
+# 1. 페이지 설정
+st.set_page_config(page_title="English IPA Master", page_icon="🇺🇸", layout="wide")
+
+# 오디오 자동 재생을 위한 함수 (하얀 박스 방지)
+def autoplay_audio(text):
+    tts = gTTS(text=text, lang='en')
+    data = BytesIO()
+    tts.write_to_fp(data)
+    b64 = base64.b64encode(data.getvalue()).decode()
+    footer_html = f"""
+        <audio autoplay="true">
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+    """
+    st.markdown(footer_html, unsafe_allow_html=True)
+
 st.title("🇺🇸 English Pronunciation Helper")
 
-# --- Sidebar: IPA Guide ---
+# --- 사이드바: IPA 가이드 ---
 with st.sidebar:
     st.header("📖 IPA Sound Guide")
-    st.write("Click to hear the sounds:")
+    
     ipa_samples = {
-        "Vowels (Short)": {"æ": "apple", "ɛ": "bed", "ɪ": "sit", "ɔ": "hot", "ʊ": "foot", "ʌ": "cup", "ə": "ago"},
-        "Vowels (Long)": {"i:": "see", "u:": "blue", "a:": "father", "ɔ:": "door", "ɜ:": "bird"},
-        "Diphthongs": {"eɪ": "say", "aɪ": "eye", "ɔɪ": "boy", "aʊ": "now", "oʊ": "go"},
-        "Consonants": {"ʃ": "ship", "tʃ": "chair", "dʒ": "jump", "θ": "thin", "ð": "this", "ŋ": "sing"}
+        "Vowels": {"æ": "apple", "ɛ": "bed", "ɪ": "sit", "ɔ": "hot", "ʊ": "foot", "ʌ": "cup", "ə": "ago"},
+        "Long & Diphthongs": {"i:": "see", "u:": "blue", "eɪ": "say", "aɪ": "eye", "oʊ": "go"},
+        "Consonants": {"ʃ": "ship", "tʃ": "chair", "θ": "thin", "ð": "this", "ŋ": "sing"}
     }
+
     for category, symbols in ipa_samples.items():
         st.subheader(category)
         for symbol, example in symbols.items():
             col1, col2 = st.columns([1, 2])
             with col1:
-                if st.button(symbol, key=f"btn_{symbol}"):
-                    tts_symbol = gTTS(text=example, lang='en')
-                    sound_fp = BytesIO()
-                    tts_symbol.write_to_fp(sound_fp)
-                    st.audio(sound_fp, format='audio/mp3')
+                # 버튼 클릭 시 하얀 박스 없이 소리만 재생
+                if st.button(symbol, key=f"guide_{symbol}"):
+                    autoplay_audio(example)
             with col2:
-                st.write(f"as in **{example}**")
+                st.caption(f"as in **{example}**")
 
-# --- Main Screen: Grouped Layout ---
-input_text = st.text_area("Enter English Text:", height=150, placeholder="Enter your text here.")
+# --- 메인 화면: 글자 기억 기능 ---
+if "text_input" not in st.session_state:
+    st.session_state.text_input = ""
+
+# 입력창 (session_state와 연결되어 글자가 지워지지 않음)
+input_text = st.text_area("Enter English Text:", value=st.session_state.text_input, height=150, key="main_input")
+st.session_state.text_input = input_text
 
 if st.button("Convert & Speak 🚀"):
     if input_text:
-        # 1. 원문 표시 (입력한 그대로)
         st.subheader("Original Text")
         st.write(input_text)
         
-        st.write("---") # 구분선
+        st.divider()
         
-        # 2. 발음기호 표시 (원문 전체에 대응하는 발음기호 덩어리)
         st.subheader("IPA Transcription")
         ipa_result = ipa.convert(input_text)
-        st.info(ipa_result) # 파란색 박스로 발음기호 덩어리 강조
+        st.info(ipa_result) # 파란색 박스로 깔끔하게 표시
         
-        # 3. 전체 음성 재생
-        st.write("---")
+        # 메인 음성 재생
+        tts_all = gTTS(text=input_text, lang='en')
         sound_file = BytesIO()
-        tts = gTTS(text=input_text, lang='en')
-        tts.write_to_fp(sound_file)
+        tts_all.write_to_fp(sound_file)
         st.audio(sound_file)
-    else:
-        st.warning("Please enter some English text first!")
