@@ -59,32 +59,36 @@ if "text_input" not in st.session_state:
 # 입력창 (session_state와 연결되어 글자가 지워지지 않음)
 input_text = st.text_area("Enter English Text:", value=st.session_state.text_input, height=150, key="main_input")
 st.session_state.text_input = input_text
+# 60번 줄 근처: 여기서 속도 선택지를 먼저 만들어야 에러가 안 나요!
+speed_choice = st.sidebar.select_slider("🐢 재생 속도", options=[0.5, 0.75, 1.0], value=1.0)
 
 if st.button("Convert & Speak 🚀"):
-        if input_text:
-            # --- 히스토리 저장 ---
-            if 'history' not in st.session_state:
-                st.session_state.history = []
-            if input_text not in st.session_state.history:
-                st.session_state.history.insert(0, input_text)
+    if input_text:
+        # 히스토리 저장
+        if 'history' not in st.session_state:
+            st.session_state.history = []
+        if input_text not in st.session_state.history:
+            st.session_state.history.insert(0, input_text)
 
-            st.subheader("Original Text")
-            st.write(input_text)
-            st.divider()
+        st.subheader("Original Text")
+        st.write(input_text)
+        st.divider()
 
-            st.subheader("IPA Transcription")
-            ipa_result = ipa.convert(input_text).replace("*", "") # 별표 제거
+        # --- 발음 기호 (크기 줄이고 예쁘게!) ---
+        st.subheader("IPA Transcription")
+        ipa_result = ipa.convert(input_text).replace("*", "")
+        formatted_ipa = ipa_result.replace(".", " · ")
+        
+        # 여기서 font-size: 1.2em; 부분이 크기를 조절해요. 너무 크면 숫자를 줄이세요!
+        formatted_ipa = re.sub(r"'([^ ·\s/]+)", r'<span style="color: #ff4757; font-weight: bold; font-size: 1.1em;">\1</span>', formatted_ipa)
+        
+        # 전체 발음기호 크기를 적당하게(1.1rem) 조절함
+        st.markdown(f'<div style="font-size: 1.1rem; line-height: 1.6;">{formatted_ipa}</div>', unsafe_allow_html=True)
 
-            # --- 강세 하이라이트 마법 ---
-            formatted_ipa = ipa_result.replace(".", " · ") 
-            formatted_ipa = re.sub(r"'([^ ·\s/]+)", r'<span style="color: #ff4757; font-weight: bold;">\1</span>', formatted_ipa)
-            st.markdown(f"### {formatted_ipa}", unsafe_allow_html=True)
+        # 오디오 재생
+        autoplay_audio(input_text, speed=speed_choice)
 
-            # --- 오디오 재생 (선택한 속도로!) ---
-            # 주의: speed_choice 변수는 버튼들 위에 st.radio로 미리 만들어둬야 해요!
-            autoplay_audio(input_text, speed=speed_choice)
-
-# --- 맨 마지막 줄 (사이드바 기록 보여주기) ---
+# 맨 아래: 최근 검색 기록
 st.sidebar.markdown("---")
 st.sidebar.title("🕒 최근 검색 기록")
 if 'history' in st.session_state:
