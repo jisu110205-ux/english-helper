@@ -84,3 +84,39 @@ if st.session_state.ipa_out:
     snd = BytesIO()
     gTTS(text=st.session_state.input_txt, lang='en').write_to_fp(snd)
     st.audio(snd) 
+
+# ... 기존 임포트 및 함수들 ...
+import librosa
+import matplotlib.pyplot as plt
+
+def plot_pitch(audio_bytes):
+    # librosa는 파일 경로뿐만 아니라 BytesIO 객체도 읽을 수 있습니다.
+    y, sr = librosa.load(audio_bytes)
+    f0, voiced_flag, voiced_probs = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), 
+                                                fmax=librosa.note_to_hz('C7'))
+    times = librosa.times_like(f0)
+    fig, ax = plt.subplots(figsize=(10, 3)) # 사이드바와 조화를 위해 높이 조절
+    ax.plot(times, f0, color='#FF4B4B', linewidth=2) # Streamlit 테마색 추천
+    ax.set_ylim(0, 400) 
+    ax.axis('off') # 깔끔하게 선만 보여주고 싶을 때 사용
+    return fig
+
+# --- 메인 화면 결과 출력 부분 ---
+if st.session_state.ipa_out:
+    st.subheader("IPA Transcription")
+    st.info(st.session_state.ipa_out)
+    
+    # 1. 음성 생성
+    snd = BytesIO()
+    gTTS(text=st.session_state.input_txt, lang='en').write_to_fp(snd)
+    
+    # 2. 오디오 플레이어
+    st.audio(snd)
+    
+    # 3. 피치 그래프 분석 (추가된 부분)
+    with st.expander("📈 상세 억양 곡선(Intonation) 보기"):
+        snd.seek(0) # 포인터를 처음으로 되돌리는 것이 핵심!
+        with st.spinner("Analyzing pitch..."):
+            fig = plot_pitch(snd)
+            st.pyplot(fig)
+        st.caption("위 곡선의 흐름을 따라 발음해 보세요. 높낮이가 변하는 지점이 핵심 강세 구간입니다.")
