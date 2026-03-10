@@ -60,25 +60,27 @@ def highlight_stress(text):
     highlighted = ipa_text.replace("'", "<span style='color:red; font-weight:bold; font-size:1.2em;'>'</span>")
     return highlighted
 
-# --- 메인 화면 수정 ---
+# --- 메인 화면 ---
+
 user_input = st.text_area("Enter English Text:", value=st.session_state.input_txt, height=150)
+st.session_state.input_txt = user_input
 
-if st.button("Analyze Pronunciation 🚀"):
+
+
+if st.button("Convert & Speak 🚀"):
     if user_input:
-        # 1. 끊어 읽기 가이드 (쉼표나 마침표 기준 또는 로직 추가)
-        paused_text = user_input.replace(",", " , |").replace(".", " . ||")
-        st.session_state.ipa_out = highlight_stress(user_input)
-        st.session_state.paused_text = paused_text
+        st.session_state.ipa_out = ipa.convert(user_input)
 
-if "ipa_out" in st.session_state and st.session_state.ipa_out:
-    st.subheader("Visual Pronunciation Guide")
+
+if st.session_state.ipa_out:
+    st.subheader("Original Text")
+    st.write(st.session_state.input_txt)
+    st.divider()
+    st.subheader("IPA Transcription")
+    st.info(st.session_state.ipa_out)
+
     
-    # 강세와 끊어 읽기를 시각적으로 표현
-    st.markdown(f"""
-    <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; line-height: 2;">
-        <p style="color: gray; margin-bottom: 5px;">[ Rhythm & Stress ]</p>
-        <div style="font-size: 1.5rem;">{st.session_state.ipa_out}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.info(f"💡 **Tip:** 빨간색 기호(')가 있는 음절을 더 높고 강하게 읽으세요! '|'는 짧게, '||'는 길게 쉬어 읽으세요.")
+    # 메인 음성 플레이어 (이건 위치 고정이라 괜찮습니다)
+    snd = BytesIO()
+    gTTS(text=st.session_state.input_txt, lang='en').write_to_fp(snd)
+    st.audio(snd) 
